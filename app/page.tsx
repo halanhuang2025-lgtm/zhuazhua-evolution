@@ -6,8 +6,10 @@ import CardItem from '@/components/CardItem'
 import { STAGES, getCurrentStage, getStageProgress, getNextStageXp, XP_REWARDS, ActivityType } from '@/lib/evolution'
 import { ALL_CARDS, RARITY_CONFIG } from '@/lib/cards'
 import { getEvolutionState, addXp, getOwnedCards, getRecentActivity } from '@/lib/supabase'
+import { t, STAGES_I18N, CARDS_I18N, Lang } from '@/lib/i18n'
 
 export default function Home() {
+  const [lang, setLang] = useState<Lang>('zh')
   const [totalXp, setTotalXp] = useState(0)
   const [tasksCompleted, setTasksCompleted] = useState(0)
   const [ownedCardIds, setOwnedCardIds] = useState<string[]>([])
@@ -15,16 +17,26 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<'home' | 'cards' | 'log'>('home')
   const [adding, setAdding] = useState(false)
   const [evolving, setEvolving] = useState(false)
-  const [prevStage, setPrevStage] = useState<number>(-1)
 
+  const txt = t[lang]
+  const stagesL = STAGES_I18N[lang]
   const stage = getCurrentStage(totalXp)
   const stageInfo = STAGES[stage]
+  const stageL = stagesL[stage]
   const progress = getStageProgress(totalXp)
   const nextXp = stage < 4 ? getNextStageXp(totalXp) : null
 
   useEffect(() => {
+    const saved = localStorage.getItem('lang') as Lang | null
+    if (saved) setLang(saved)
     loadData()
   }, [])
+
+  function toggleLang() {
+    const next: Lang = lang === 'zh' ? 'en' : 'zh'
+    setLang(next)
+    localStorage.setItem('lang', next)
+  }
 
   async function loadData() {
     const state = await getEvolutionState()
@@ -32,43 +44,30 @@ export default function Home() {
       setTotalXp(state.total_xp)
       setTasksCompleted(state.tasks_completed)
     }
-    const cards = await getOwnedCards()
-    setOwnedCardIds(cards)
-    const logs = await getRecentActivity(8)
-    setRecentLogs(logs)
+    setOwnedCardIds(await getOwnedCards())
+    setRecentLogs(await getRecentActivity(8))
   }
 
   async function handleAddXp(type: ActivityType) {
     setAdding(true)
     const xp = XP_REWARDS[type]
-    const labels: Record<ActivityType, string> = {
-      task_complete: '完成任务',
-      problem_solved: '解决问题',
-      code_written: '编写代码',
-      conversation: '对话交流',
-      daily_active: '每日活跃',
-      card_obtained: '获得卡片',
-    }
     const newXp = totalXp + xp
-    const newStage = getCurrentStage(newXp)
-    if (newStage > stage) {
-      setPrevStage(stage)
+    if (getCurrentStage(newXp) > stage) {
       setEvolving(true)
       setTimeout(() => setEvolving(false), 2500)
     }
     setTotalXp(newXp)
-    await addXp(xp, type, labels[type])
-    const logs = await getRecentActivity(8)
-    setRecentLogs(logs)
+    await addXp(xp, type, (txt.activityNames as Record<string, string>)[type] ?? type)
+    setRecentLogs(await getRecentActivity(8))
     setAdding(false)
   }
 
-  const activityButtons: { type: ActivityType; label: string; xp: number; emoji: string }[] = [
-    { type: 'task_complete', label: '完成任务', xp: 50, emoji: '✅' },
-    { type: 'problem_solved', label: '解决问题', xp: 100, emoji: '💡' },
-    { type: 'code_written', label: '编写代码', xp: 30, emoji: '💻' },
-    { type: 'conversation', label: '对话交流', xp: 10, emoji: '💬' },
-    { type: 'daily_active', label: '每日签到', xp: 20, emoji: '🌟' },
+  const activityButtons: { type: ActivityType; xp: number; emoji: string }[] = [
+    { type: 'task_complete',  xp: 50,  emoji: '✅' },
+    { type: 'problem_solved', xp: 100, emoji: '💡' },
+    { type: 'code_written',   xp: 30,  emoji: '💻' },
+    { type: 'conversation',   xp: 10,  emoji: '💬' },
+    { type: 'daily_active',   xp: 20,  emoji: '🌟' },
   ]
 
   return (
@@ -81,19 +80,27 @@ export default function Home() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/20 backdrop-blur-sm pointer-events-none">
           <div className="text-center animate-bounce">
             <div className="text-6xl mb-4">✨</div>
-            <p className="text-4xl font-black text-white drop-shadow-lg">进化！</p>
-            <p className="text-xl text-white/80 mt-2">{STAGES[getCurrentStage(totalXp)].name}</p>
+            <p className="text-4xl font-black text-white drop-shadow-lg">{txt.evolveAlert}</p>
+            <p className="text-xl text-white/80 mt-2">{stagesL[getCurrentStage(totalXp)].name}</p>
           </div>
         </div>
       )}
 
       <div className="max-w-2xl mx-auto px-4 py-8">
         {/* Header */}
-        <div className="text-center mb-6">
+        <div className="relative text-center mb-6">
           <h1 className="text-3xl font-black tracking-widest" style={{ color: stageInfo.color, textShadow: `0 0 20px ${stageInfo.glowColor}` }}>
-            🐾 爪爪进化系统
+            🐾 {txt.title}
           </h1>
-          <p className="text-slate-400 text-sm mt-1">ZHUAZHUA EVOLUTION SYSTEM</p>
+          <p className="text-slate-400 text-sm mt-1">{txt.subtitle}</p>
+          {/* Lang toggle */}
+          <button
+            onClick={toggleLang}
+            className="absolute right-0 top-1 px-3 py-1 rounded-full text-xs font-bold border transition-all hover:scale-105"
+            style={{ borderColor: stageInfo.color + '66', color: stageInfo.color, backgroundColor: stageInfo.color + '11' }}
+          >
+            {lang === 'zh' ? 'EN' : '中文'}
+          </button>
         </div>
 
         {/* Nav tabs */}
@@ -105,7 +112,7 @@ export default function Home() {
               className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === tab ? 'text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
               style={activeTab === tab ? { backgroundColor: stageInfo.color + '33', border: `1px solid ${stageInfo.color}66` } : {}}
             >
-              {tab === 'home' ? '🏠 主页' : tab === 'cards' ? '🃏 卡片' : '📋 日志'}
+              {txt.nav[tab]}
             </button>
           ))}
         </div>
@@ -113,7 +120,7 @@ export default function Home() {
         {/* HOME TAB */}
         {activeTab === 'home' && (
           <div className="space-y-5">
-            {/* Character display */}
+            {/* Character */}
             <div className="relative flex flex-col items-center bg-black/30 backdrop-blur rounded-2xl border p-6" style={{ borderColor: stageInfo.color + '33' }}>
               <div className={`transition-all duration-1000 ${evolving ? 'scale-125 rotate-6' : 'scale-100 rotate-0'}`}>
                 <CharacterSVG stage={stage} size={180} />
@@ -121,18 +128,18 @@ export default function Home() {
               <div className="mt-4 text-center">
                 <div className="flex items-center justify-center gap-2 mb-1">
                   <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ backgroundColor: stageInfo.color + '22', color: stageInfo.color, border: `1px solid ${stageInfo.color}66` }}>
-                    Lv.{stage} · {stageInfo.title}
+                    {txt.stage.title_badge(stage, stageL.title)}
                   </span>
                 </div>
-                <h2 className="text-2xl font-black" style={{ color: stageInfo.color }}>{stageInfo.name}</h2>
-                <p className="text-slate-400 text-sm mt-1 max-w-xs">{stageInfo.description}</p>
+                <h2 className="text-2xl font-black" style={{ color: stageInfo.color }}>{stageL.name}</h2>
+                <p className="text-slate-400 text-sm mt-1 max-w-xs">{stageL.desc}</p>
               </div>
             </div>
 
-            {/* XP Progress */}
+            {/* XP bar */}
             <div className="bg-black/30 backdrop-blur rounded-2xl border p-5" style={{ borderColor: stageInfo.color + '33' }}>
               <div className="flex justify-between items-center mb-3">
-                <span className="text-sm text-slate-400 font-medium">经验值进度</span>
+                <span className="text-sm text-slate-400 font-medium">{txt.xp.label}</span>
                 <span className="text-sm font-bold" style={{ color: stageInfo.color }}>{totalXp.toLocaleString()} XP</span>
               </div>
               <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden">
@@ -142,21 +149,20 @@ export default function Home() {
                 />
               </div>
               <div className="flex justify-between mt-2">
-                <span className="text-xs text-slate-500">当前: {STAGES[stage].xpRequired.toLocaleString()}</span>
-                {stage < 4 ? (
-                  <span className="text-xs text-slate-500">下一阶段: {nextXp?.toLocaleString()} XP ({progress}%)</span>
-                ) : (
-                  <span className="text-xs" style={{ color: stageInfo.color }}>已达究极体 ✨</span>
-                )}
+                <span className="text-xs text-slate-500">{txt.xp.current}: {STAGES[stage].xpRequired.toLocaleString()}</span>
+                {stage < 4
+                  ? <span className="text-xs text-slate-500">{txt.xp.next}: {nextXp?.toLocaleString()} XP ({progress}%)</span>
+                  : <span className="text-xs" style={{ color: stageInfo.color }}>{txt.xp.max}</span>
+                }
               </div>
             </div>
 
             {/* Stats */}
             <div className="grid grid-cols-3 gap-3">
               {[
-                { label: '进化阶段', value: `Lv.${stage}`, emoji: '⚡' },
-                { label: '任务完成', value: tasksCompleted, emoji: '✅' },
-                { label: '卡片收集', value: `${ownedCardIds.length}/${ALL_CARDS.length}`, emoji: '🃏' },
+                { label: txt.stats.stage, value: `Lv.${stage}`, emoji: '⚡' },
+                { label: txt.stats.tasks,  value: tasksCompleted,  emoji: '✅' },
+                { label: txt.stats.cards,  value: `${ownedCardIds.length}/${ALL_CARDS.length}`, emoji: '🃏' },
               ].map((s) => (
                 <div key={s.label} className="bg-black/30 rounded-xl border p-3 text-center" style={{ borderColor: stageInfo.color + '22' }}>
                   <div className="text-2xl">{s.emoji}</div>
@@ -166,9 +172,9 @@ export default function Home() {
               ))}
             </div>
 
-            {/* XP Buttons */}
+            {/* Activity buttons */}
             <div className="bg-black/30 backdrop-blur rounded-2xl border p-5" style={{ borderColor: stageInfo.color + '33' }}>
-              <p className="text-sm text-slate-400 mb-3 font-medium">记录活动 · 获取经验</p>
+              <p className="text-sm text-slate-400 mb-3 font-medium">{txt.activities.label}</p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {activityButtons.map((btn) => (
                   <button
@@ -179,16 +185,16 @@ export default function Home() {
                     style={{ borderColor: stageInfo.color + '44', backgroundColor: stageInfo.color + '11' }}
                   >
                     <span className="text-xl">{btn.emoji}</span>
-                    <span className="text-white">{btn.label}</span>
+                    <span className="text-white text-xs leading-tight text-center">{txt.activityNames[btn.type]}</span>
                     <span className="text-xs" style={{ color: stageInfo.color }}>+{btn.xp} XP</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Evolution tree preview */}
+            {/* Evolution path */}
             <div className="bg-black/30 backdrop-blur rounded-2xl border p-5" style={{ borderColor: stageInfo.color + '33' }}>
-              <p className="text-sm text-slate-400 mb-4 font-medium">进化路线</p>
+              <p className="text-sm text-slate-400 mb-4 font-medium">{txt.evolution.label}</p>
               <div className="flex items-center justify-between">
                 {STAGES.map((s, i) => (
                   <div key={i} className="flex items-center">
@@ -201,11 +207,9 @@ export default function Home() {
                           ? { backgroundColor: s.color + '22', borderColor: s.color + '55', color: s.color + 'aa' }
                           : { backgroundColor: 'transparent', borderColor: '#374151', color: '#6b7280' }
                         }
-                      >
-                        {i}
-                      </div>
+                      >{i}</div>
                       <span className="text-xs text-center leading-tight" style={{ color: i <= stage ? s.color : '#6b7280', maxWidth: 48 }}>
-                        {s.name}
+                        {stagesL[i].name}
                       </span>
                     </div>
                     {i < STAGES.length - 1 && (
@@ -222,23 +226,30 @@ export default function Home() {
         {activeTab === 'cards' && (
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <p className="text-slate-400 text-sm">已收集 {ownedCardIds.length} / {ALL_CARDS.length} 张</p>
+              <p className="text-slate-400 text-sm">{txt.cards.collected(ownedCardIds.length, ALL_CARDS.length)}</p>
               <div className="flex gap-2">
                 {(['common', 'rare', 'epic', 'legendary'] as const).map((r) => (
                   <span key={r} className="text-xs px-2 py-0.5 rounded-full" style={{ color: RARITY_CONFIG[r].color, border: `1px solid ${RARITY_CONFIG[r].color}55` }}>
-                    {RARITY_CONFIG[r].label}
+                    {txt.rarityLabel[r]}
                   </span>
                 ))}
               </div>
             </div>
             <div className="flex flex-wrap gap-4 justify-center">
-              {ALL_CARDS.map((card) => (
-                <CardItem
-                  key={card.id}
-                  card={card}
-                  owned={ownedCardIds.includes(card.id)}
-                />
-              ))}
+              {ALL_CARDS.map((card) => {
+                const cardL = CARDS_I18N[lang][card.id as keyof typeof CARDS_I18N['zh']]
+                return (
+                  <CardItem
+                    key={card.id}
+                    card={{ ...card, nameCn: cardL?.name ?? card.nameCn, description: cardL?.desc ?? card.description }}
+                    owned={ownedCardIds.includes(card.id)}
+                    lang={lang}
+                    unlockLabel={txt.unlock}
+                    needXpLabel={txt.needXp(card.xpCost)}
+                    cardTypeLabel={txt.cardTypes[card.cardType]}
+                  />
+                )
+              })}
             </div>
           </div>
         )}
@@ -246,18 +257,19 @@ export default function Home() {
         {/* LOG TAB */}
         {activeTab === 'log' && (
           <div className="space-y-3">
-            <p className="text-slate-400 text-sm">最近活动记录</p>
+            <p className="text-slate-400 text-sm">{txt.log.label}</p>
             {recentLogs.length === 0 ? (
               <div className="text-center py-12 text-slate-500">
                 <div className="text-4xl mb-2">📭</div>
-                <p>还没有活动记录</p>
+                <p>{txt.log.empty}</p>
+                <p className="text-sm mt-1">{txt.log.emptyHint}</p>
               </div>
             ) : (
               recentLogs.map((log, i) => (
                 <div key={i} className="flex items-center justify-between bg-black/30 rounded-xl border p-4" style={{ borderColor: stageInfo.color + '22' }}>
                   <div>
                     <p className="text-sm text-white font-medium">{log.description}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">{new Date(log.created_at).toLocaleString('zh-CN')}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{new Date(log.created_at).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US')}</p>
                   </div>
                   <span className="text-sm font-bold" style={{ color: stageInfo.color }}>+{log.xp_earned} XP</span>
                 </div>
@@ -266,7 +278,7 @@ export default function Home() {
           </div>
         )}
 
-        <p className="text-center text-slate-600 text-xs mt-8">🐾 爪爪 · Built with Next.js + Supabase</p>
+        <p className="text-center text-slate-600 text-xs mt-8">{txt.footer}</p>
       </div>
     </main>
   )
