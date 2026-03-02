@@ -9,7 +9,7 @@ import { getEvolutionState, addXp, getOwnedCards, getRecentActivity } from '@/li
 import { t, STAGES_I18N, CARDS_I18N, Lang } from '@/lib/i18n'
 
 export default function Home() {
-  const [lang, setLang] = useState<Lang>('zh')
+  const [lang, setLang] = useState<Lang>('en')
   const [totalXp, setTotalXp] = useState(0)
   const [tasksCompleted, setTasksCompleted] = useState(0)
   const [ownedCardIds, setOwnedCardIds] = useState<string[]>([])
@@ -73,7 +73,7 @@ export default function Home() {
   return (
     <main
       className={`min-h-screen bg-gradient-to-br ${stageInfo.bgGradient} text-white transition-all duration-1000`}
-      style={{ fontFamily: "'Segoe UI', system-ui, sans-serif" }}
+      style={{ fontFamily: "var(--font-space), 'Segoe UI', system-ui, sans-serif" }}
     >
       {/* Evolution flash */}
       {evolving && (
@@ -89,7 +89,7 @@ export default function Home() {
       <div className="max-w-2xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="relative text-center mb-6">
-          <h1 className="text-3xl font-black tracking-widest" style={{ color: stageInfo.color, textShadow: `0 0 20px ${stageInfo.glowColor}` }}>
+          <h1 className="text-3xl font-black tracking-widest font-orbitron" style={{ color: stageInfo.color, textShadow: `0 0 20px ${stageInfo.glowColor}` }}>
             🐾 {txt.title}
           </h1>
           <p className="text-slate-400 text-sm mt-1">{txt.subtitle}</p>
