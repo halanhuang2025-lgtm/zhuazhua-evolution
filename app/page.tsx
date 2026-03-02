@@ -1,6 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import {
+  Container, Stack, Group, Paper, Text, Title, Progress,
+  Badge, Button, SimpleGrid, ThemeIcon, Box, ActionIcon,
+} from '@mantine/core'
+import { notifications } from '@mantine/notifications'
 import CharacterSVG from '@/components/CharacterSVG'
 import CardItem from '@/components/CardItem'
 import { STAGES, getCurrentStage, getStageProgress, getNextStageXp, XP_REWARDS, ActivityType } from '@/lib/evolution'
@@ -14,10 +19,9 @@ export default function Home() {
   const [tasksCompleted, setTasksCompleted] = useState(0)
   const [ownedCardIds, setOwnedCardIds] = useState<string[]>([])
   const [recentLogs, setRecentLogs] = useState<{ description: string; xp_earned: number; created_at: string }[]>([])
-  const [activeTab, setActiveTab] = useState<'home' | 'cards' | 'log'>('home')
+  const [activeTab, setActiveTab] = useState<string | null>('home')
   const [adding, setAdding] = useState(false)
   const [evolving, setEvolving] = useState(false)
-  const [newCards, setNewCards] = useState<string[]>([])
 
   const txt = t[lang]
   const stagesL = STAGES_I18N[lang]
@@ -30,7 +34,7 @@ export default function Home() {
   useEffect(() => {
     const saved = localStorage.getItem('lang') as Lang | null
     if (saved) setLang(saved)
-    loadData().then(() => runCardUnlockCheck(totalXp))
+    loadData()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -49,13 +53,24 @@ export default function Home() {
     const owned = await getOwnedCards()
     setOwnedCardIds(owned)
     setRecentLogs(await getRecentActivity(8))
+    if (state) await runCardUnlockCheck(state.total_xp)
   }
 
   async function runCardUnlockCheck(xp: number) {
     const newly = await checkAndUnlockCards(xp, ALL_CARDS)
     if (newly.length > 0) {
-      setNewCards(newly)
-      setTimeout(() => setNewCards([]), 4000)
+      newly.forEach(id => {
+        const card = ALL_CARDS.find(c => c.id === id)
+        if (card) {
+          notifications.show({
+            title: lang === 'zh' ? '卡片解锁！' : 'Card Unlocked!',
+            message: lang === 'zh' ? card.nameCn : card.name,
+            color: 'violet',
+            icon: <span style={{ fontSize: 20 }}>{card.icon}</span>,
+            autoClose: 4000,
+          })
+        }
+      })
       setOwnedCardIds(await getOwnedCards())
     }
   }
@@ -83,210 +98,246 @@ export default function Home() {
     { type: 'daily_active',   xp: 20,  emoji: '🌟' },
   ]
 
+  const glowStyle = { boxShadow: `0 0 32px ${stageInfo.glowColor}` }
+
   return (
-    <main
-      className={`min-h-screen bg-gradient-to-br ${stageInfo.bgGradient} text-white transition-all duration-1000`}
-      style={{ fontFamily: "var(--font-space), 'Segoe UI', system-ui, sans-serif" }}
+    <Box
+      style={{
+        minHeight: '100vh',
+        background: `linear-gradient(135deg, var(--from, #0d0a1a) 0%, #080612 100%)`,
+        fontFamily: 'var(--font-space), system-ui, sans-serif',
+        transition: 'all 0.8s',
+      }}
     >
-      {/* Evolution flash */}
+      {/* Evolution flash overlay */}
       {evolving && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/20 backdrop-blur-sm pointer-events-none">
-          <div className="text-center animate-bounce">
-            <div className="text-6xl mb-4">✨</div>
-            <p className="text-4xl font-black text-white drop-shadow-lg">{txt.evolveAlert}</p>
-            <p className="text-xl text-white/80 mt-2">{stagesL[getCurrentStage(totalXp)].name}</p>
-          </div>
-        </div>
+        <Box style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(6px)',
+          pointerEvents: 'none',
+        }}>
+          <Stack align="center" gap="xs" style={{ animation: 'bounce 0.5s infinite alternate' }}>
+            <Text size="60px">✨</Text>
+            <Title order={1} style={{ color: '#fff', fontFamily: 'var(--font-orbitron)', fontSize: 40, textShadow: '0 0 30px white' }}>
+              {txt.evolveAlert}
+            </Title>
+            <Text c="dimmed">{stagesL[getCurrentStage(totalXp)].name}</Text>
+          </Stack>
+        </Box>
       )}
 
-
-      {/* New card toast */}
-      {newCards.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 items-center pointer-events-none">
-          {newCards.map(id => {
-            const card = ALL_CARDS.find(c => c.id === id)
-            return card ? (
-              <div key={id} className="flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl animate-bounce"
-                style={{ background: 'linear-gradient(135deg, #1e1b4b, #312e81)', border: `2px solid ${RARITY_CONFIG[card.rarity].color}` }}>
-                <span className="text-2xl">{card.icon}</span>
-                <div>
-                  <p className="text-xs text-slate-400 uppercase tracking-widest">Card Unlocked!</p>
-                  <p className="text-sm font-bold text-white">{lang === 'zh' ? card.nameCn : card.name}</p>
-                </div>
-                <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ color: RARITY_CONFIG[card.rarity].color, border: `1px solid ${RARITY_CONFIG[card.rarity].color}44` }}>
-                  {RARITY_CONFIG[card.rarity].label.split('/')[lang === 'zh' ? 1 : 0]}
-                </span>
-              </div>
-            ) : null
-          })}
-        </div>
-      )}
-
-      <div className="max-w-2xl mx-auto px-4 py-8">
+      <Container size="sm" py="xl">
         {/* Header */}
-        <div className="text-center mb-6">
-          <h1 className="text-3xl font-black tracking-widest font-orbitron" style={{ color: stageInfo.color, textShadow: `0 0 20px ${stageInfo.glowColor}` }}>
+        <Stack gap="xs" mb="xl" align="center" style={{ position: 'relative' }}>
+          <Title
+            order={1}
+            style={{
+              fontFamily: 'var(--font-orbitron)',
+              color: stageInfo.color,
+              textShadow: `0 0 20px ${stageInfo.glowColor}`,
+              fontSize: 'clamp(20px, 5vw, 30px)',
+              letterSpacing: 3,
+              textAlign: 'center',
+            }}
+          >
             🐾 {txt.title}
-          </h1>
-          <p className="text-slate-400 text-sm mt-1">{txt.subtitle}</p>
-
-        </div>
+          </Title>
+          <Text size="xs" c="dimmed" style={{ textTransform: "uppercase", letterSpacing: 2 }}>{txt.subtitle}</Text>
+        </Stack>
 
         {/* Nav tabs */}
-        <div className="flex gap-2 mb-6 bg-black/30 p-1 rounded-xl">
-          {(['home', 'cards', 'log'] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === tab ? 'text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
-              style={activeTab === tab ? { backgroundColor: stageInfo.color + '33', border: `1px solid ${stageInfo.color}66` } : {}}
+        <Paper mb="xl" p="xs" style={{ background: 'rgba(0,0,0,0.4)' }}>
+          <Group justify="space-between" wrap="nowrap">
+            <Group gap="xs" style={{ flex: 1 }}>
+              {(['home', 'cards', 'log'] as const).map(tab => (
+                <Button
+                  key={tab}
+                  variant={activeTab === tab ? 'light' : 'subtle'}
+                  onClick={() => setActiveTab(tab)}
+                  size="sm"
+                  style={{
+                    flex: 1,
+                    color: activeTab === tab ? stageInfo.color : '#94a3b8',
+                    borderColor: activeTab === tab ? `${stageInfo.color}55` : 'transparent',
+                    background: activeTab === tab ? `${stageInfo.color}22` : 'transparent',
+                  }}
+                >
+                  {txt.nav[tab]}
+                </Button>
+              ))}
+            </Group>
+            <ActionIcon
+              variant="subtle"
+              onClick={toggleLang}
+              size="lg"
+              style={{ color: stageInfo.color, border: `1px solid ${stageInfo.color}55`, borderRadius: 10, minWidth: 44 }}
             >
-              {txt.nav[tab]}
-            </button>
-          ))}
-          <button
-            onClick={toggleLang}
-            className="px-3 py-2 rounded-lg text-xs font-bold border transition-all hover:scale-105 whitespace-nowrap"
-            style={{ borderColor: stageInfo.color + '55', color: stageInfo.color, backgroundColor: stageInfo.color + '11' }}
-          >
-            {lang === 'zh' ? 'EN' : '中'}
-          </button>
-        </div>
+              <Text size="xs" fw={700}>{lang === 'zh' ? 'EN' : '中'}</Text>
+            </ActionIcon>
+          </Group>
+        </Paper>
 
         {/* HOME TAB */}
         {activeTab === 'home' && (
-          <div className="space-y-5">
-            {/* Character */}
-            <div className="relative flex flex-col items-center bg-black/30 backdrop-blur rounded-2xl border p-6" style={{ borderColor: stageInfo.color + '33' }}>
-              <div className={`transition-all duration-1000 ${evolving ? 'scale-125 rotate-6' : 'scale-100 rotate-0'}`}>
-                <CharacterSVG stage={stage} size={180} />
-              </div>
-              <div className="mt-4 text-center">
-                <div className="flex items-center justify-center gap-2 mb-1">
-                  <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ backgroundColor: stageInfo.color + '22', color: stageInfo.color, border: `1px solid ${stageInfo.color}66` }}>
+          <Stack gap="md">
+            {/* Character card */}
+            <Paper
+              p="xl"
+              style={{
+                background: 'rgba(0,0,0,0.35)',
+                border: `1px solid ${stageInfo.color}33`,
+                backdropFilter: 'blur(8px)',
+                ...glowStyle,
+              }}
+            >
+              <Stack align="center" gap="md">
+                <Box style={{ transform: evolving ? 'scale(1.2) rotate(6deg)' : 'scale(1)', transition: 'all 0.5s' }}>
+                  <CharacterSVG stage={stage} size={180} />
+                </Box>
+                <Stack gap={4} align="center">
+                  <Badge
+                    variant="outline"
+                    style={{ borderColor: stageInfo.color, color: stageInfo.color }}
+                  >
                     {txt.stage.title_badge(stage, stageL.title)}
-                  </span>
-                </div>
-                <h2 className="text-2xl font-black" style={{ color: stageInfo.color }}>{stageL.name}</h2>
-                <p className="text-slate-400 text-sm mt-1 max-w-xs">{stageL.desc}</p>
-              </div>
-            </div>
+                  </Badge>
+                  <Title order={2} style={{ color: stageInfo.color, fontFamily: 'var(--font-orbitron)' }}>
+                    {stageL.name}
+                  </Title>
+                  <Text size="sm" c="dimmed" ta="center" maw={280}>{stageL.desc}</Text>
+                </Stack>
+              </Stack>
+            </Paper>
 
-            {/* XP bar */}
-            <div className="bg-black/30 backdrop-blur rounded-2xl border p-5" style={{ borderColor: stageInfo.color + '33' }}>
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-sm text-slate-400 font-medium">{txt.xp.label}</span>
-                <span className="text-sm font-bold" style={{ color: stageInfo.color }}>{totalXp.toLocaleString()} XP</span>
-              </div>
-              <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-700"
-                  style={{ width: `${progress}%`, background: `linear-gradient(90deg, ${stageInfo.color}88, ${stageInfo.color})`, boxShadow: `0 0 8px ${stageInfo.glowColor}` }}
-                />
-              </div>
-              <div className="flex justify-between mt-2">
-                <span className="text-xs text-slate-500">{txt.xp.current}: {STAGES[stage].xpRequired.toLocaleString()}</span>
+            {/* XP Progress */}
+            <Paper p="lg" style={{ background: 'rgba(0,0,0,0.35)', border: `1px solid ${stageInfo.color}33` }}>
+              <Group justify="space-between" mb="xs">
+                <Text size="sm" c="dimmed" fw={500}>{txt.xp.label}</Text>
+                <Text size="sm" fw={700} style={{ color: stageInfo.color }}>{totalXp.toLocaleString()} XP</Text>
+              </Group>
+              <Progress
+                value={progress}
+                size="md"
+                radius="xl"
+                styles={{ section: { background: `linear-gradient(90deg, ${stageInfo.color}88, ${stageInfo.color})` } }}
+              />
+              <Group justify="space-between" mt="xs">
+                <Text size="xs" c="dimmed">{txt.xp.current}: {STAGES[stage].xpRequired.toLocaleString()}</Text>
                 {stage < 4
-                  ? <span className="text-xs text-slate-500">{txt.xp.next}: {nextXp?.toLocaleString()} XP ({progress}%)</span>
-                  : <span className="text-xs" style={{ color: stageInfo.color }}>{txt.xp.max}</span>
+                  ? <Text size="xs" c="dimmed">{txt.xp.next}: {nextXp?.toLocaleString()} XP ({progress}%)</Text>
+                  : <Text size="xs" style={{ color: stageInfo.color }}>{txt.xp.max}</Text>
                 }
-              </div>
-            </div>
+              </Group>
+            </Paper>
 
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-3">
+            <SimpleGrid cols={3} spacing="sm">
               {[
                 { label: txt.stats.stage, value: `Lv.${stage}`, emoji: '⚡' },
                 { label: txt.stats.tasks,  value: tasksCompleted,  emoji: '✅' },
                 { label: txt.stats.cards,  value: `${ownedCardIds.length}/${ALL_CARDS.length}`, emoji: '🃏' },
-              ].map((s) => (
-                <div key={s.label} className="bg-black/30 rounded-xl border p-3 text-center" style={{ borderColor: stageInfo.color + '22' }}>
-                  <div className="text-2xl">{s.emoji}</div>
-                  <div className="text-lg font-black mt-1" style={{ color: stageInfo.color }}>{s.value}</div>
-                  <div className="text-xs text-slate-500">{s.label}</div>
-                </div>
+              ].map(s => (
+                <Paper key={s.label} p="sm" style={{ background: 'rgba(0,0,0,0.35)', border: `1px solid ${stageInfo.color}22`, textAlign: 'center' }}>
+                  <Text size="xl">{s.emoji}</Text>
+                  <Text fw={900} size="lg" style={{ color: stageInfo.color }}>{s.value}</Text>
+                  <Text size="xs" c="dimmed">{s.label}</Text>
+                </Paper>
               ))}
-            </div>
+            </SimpleGrid>
 
             {/* Activity buttons */}
-            <div className="bg-black/30 backdrop-blur rounded-2xl border p-5" style={{ borderColor: stageInfo.color + '33' }}>
-              <p className="text-sm text-slate-400 mb-3 font-medium">{txt.activities.label}</p>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {activityButtons.map((btn) => (
-                  <button
+            <Paper p="lg" style={{ background: 'rgba(0,0,0,0.35)', border: `1px solid ${stageInfo.color}33` }}>
+              <Text size="sm" c="dimmed" fw={500} mb="sm">{txt.activities.label}</Text>
+              <SimpleGrid cols={2} spacing="sm">
+                {activityButtons.map(btn => (
+                  <Button
                     key={btn.type}
-                    onClick={() => handleAddXp(btn.type)}
+                    variant="subtle"
                     disabled={adding}
-                    className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl border text-sm font-bold transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
-                    style={{ borderColor: stageInfo.color + '44', backgroundColor: stageInfo.color + '11' }}
+                    onClick={() => handleAddXp(btn.type)}
+                    style={{
+                      border: `1px solid ${stageInfo.color}44`,
+                      background: `${stageInfo.color}11`,
+                      height: 'auto',
+                      padding: '10px 8px',
+                    }}
                   >
-                    <span className="text-xl">{btn.emoji}</span>
-                    <span className="text-white text-xs leading-tight text-center">{(txt.activityNames as Record<string, string>)[btn.type]}</span>
-                    <span className="text-xs" style={{ color: stageInfo.color }}>+{btn.xp} XP</span>
-                  </button>
+                    <Stack gap={2} align="center">
+                      <Text size="xl">{btn.emoji}</Text>
+                      <Text size="xs" c="white" fw={600}>{(txt.activityNames as Record<string, string>)[btn.type]}</Text>
+                      <Text size="xs" style={{ color: stageInfo.color }}>+{btn.xp} XP</Text>
+                    </Stack>
+                  </Button>
                 ))}
-              </div>
-            </div>
+              </SimpleGrid>
+            </Paper>
 
             {/* Evolution path */}
-            <div className="bg-black/30 backdrop-blur rounded-2xl border p-5" style={{ borderColor: stageInfo.color + '33' }}>
-              <p className="text-sm text-slate-400 mb-4 font-medium">{txt.evolution.label}</p>
-              <div className="flex items-center justify-between">
+            <Paper p="lg" style={{ background: 'rgba(0,0,0,0.35)', border: `1px solid ${stageInfo.color}33` }}>
+              <Text size="sm" c="dimmed" fw={500} mb="md">{txt.evolution.label}</Text>
+              <Group justify="space-between" wrap="nowrap">
                 {STAGES.map((s, i) => (
-                  <div key={i} className="flex items-center">
-                    <div className={`flex flex-col items-center gap-1 ${i <= stage ? 'opacity-100' : 'opacity-30'}`}>
-                      <div
-                        className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black border-2"
-                        style={i === stage
-                          ? { backgroundColor: s.color + '33', borderColor: s.color, color: s.color, boxShadow: `0 0 10px ${s.glowColor}` }
-                          : i < stage
-                          ? { backgroundColor: s.color + '22', borderColor: s.color + '55', color: s.color + 'aa' }
-                          : { backgroundColor: 'transparent', borderColor: '#374151', color: '#6b7280' }
-                        }
-                      >{i}</div>
-                      <span className="text-xs text-center leading-tight" style={{ color: i <= stage ? s.color : '#6b7280', maxWidth: 48 }}>
+                  <Group key={i} wrap="nowrap" style={{ flex: 1, alignItems: 'flex-start' }}>
+                    <Stack align="center" gap={4} style={{ flex: 1, opacity: i <= stage ? 1 : 0.3 }}>
+                      <ThemeIcon
+                        size="lg"
+                        radius="xl"
+                        variant={i === stage ? 'filled' : i < stage ? 'light' : 'outline'}
+                        style={i === stage ? {
+                          backgroundColor: `${s.color}33`,
+                          border: `2px solid ${s.color}`,
+                          color: s.color,
+                          boxShadow: `0 0 10px ${s.glowColor}`,
+                        } : {
+                          borderColor: i < stage ? `${s.color}55` : '#374151',
+                          color: i < stage ? `${s.color}aa` : '#6b7280',
+                        }}
+                      >
+                        <Text size="xs" fw={900}>{i}</Text>
+                      </ThemeIcon>
+                      <Text size="10px" ta="center" style={{ color: i <= stage ? s.color : '#6b7280', maxWidth: 48, lineHeight: 1.2 }}>
                         {stagesL[i].name}
-                      </span>
-                    </div>
+                      </Text>
+                    </Stack>
                     {i < STAGES.length - 1 && (
-                      <div className="flex-1 h-px mx-1" style={{ backgroundColor: i < stage ? STAGES[i].color + '66' : '#374151' }} />
+                      <Box style={{ flex: 1, height: 1, marginTop: 18, backgroundColor: i < stage ? `${STAGES[i].color}66` : '#374151' }} />
                     )}
-                  </div>
+                  </Group>
                 ))}
-              </div>
-            </div>
-          </div>
+              </Group>
+            </Paper>
+          </Stack>
+
         )}
 
         {/* CARDS TAB */}
         {activeTab === 'cards' && (
-          <div className="space-y-5">
-            {/* Header */}
-            <div className="flex justify-between items-center">
-              <p className="text-slate-400 text-sm">{txt.cards.collected(ownedCardIds.length, ALL_CARDS.length)}</p>
-              <div className="flex gap-1 flex-wrap justify-end">
-                {(['common', 'rare', 'epic', 'legendary'] as const).map((r) => (
-                  <span key={r} className="text-xs px-2 py-0.5 rounded-full" style={{ color: RARITY_CONFIG[r].color, border: `1px solid ${RARITY_CONFIG[r].color}55` }}>
+          <Stack gap="xl">
+            <Group justify="space-between">
+              <Text size="sm" c="dimmed">{txt.cards.collected(ownedCardIds.length, ALL_CARDS.length)}</Text>
+              <Group gap="xs">
+                {(['common', 'rare', 'epic', 'legendary'] as const).map(r => (
+                  <Badge key={r} variant="outline" size="xs" style={{ borderColor: `${RARITY_CONFIG[r].color}55`, color: RARITY_CONFIG[r].color }}>
                     {txt.rarityLabel[r]}
-                  </span>
+                  </Badge>
                 ))}
-              </div>
-            </div>
+              </Group>
+            </Group>
 
-            {/* Skill cards section */}
-            {(['skill', 'evolution', 'special'] as const).map((section) => {
+            {(['skill', 'evolution', 'special'] as const).map(section => {
               const sectionCards = ALL_CARDS.filter(c => c.cardType === section)
               const sectionLabel = { skill: '⚙️ Skill', evolution: '✨ Evolution', special: '🌟 Special' }[section]
               return (
-                <div key={section}>
-                  <p className="text-xs uppercase tracking-widest text-slate-500 mb-3 px-1">{sectionLabel}</p>
-                  <div className="flex flex-wrap gap-3 justify-start">
-                    {sectionCards.map((card) => {
+                <Stack key={section} gap="sm">
+                  <Text size="xs" c="dimmed" style={{ textTransform: "uppercase", letterSpacing: 2 }}>{sectionLabel}</Text>
+                  <Group gap="md" wrap="wrap">
+                    {sectionCards.map(card => {
                       const owned = ownedCardIds.includes(card.id)
                       const cardL = CARDS_I18N[lang][card.id as keyof typeof CARDS_I18N['zh']]
                       const xpPct = card.xpUnlock > 0 ? Math.min(100, Math.round(totalXp / card.xpUnlock * 100)) : 100
                       return (
-                        <div key={card.id} className="flex flex-col items-center gap-1.5">
+                        <Stack key={card.id} align="center" gap={6}>
                           <CardItem
                             card={{ ...card, nameCn: cardL?.name ?? card.nameCn, description: cardL?.desc ?? card.description }}
                             owned={owned}
@@ -295,65 +346,65 @@ export default function Home() {
                             needXpLabel={txt.needXp(card.xpCost)}
                             cardTypeLabel={txt.cardTypes[card.cardType]}
                           />
-                          {/* XP progress bar for locked cards */}
                           {!owned && card.xpUnlock > 0 && (
-                            <div className="w-36">
-                              <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                                <div
-                                  className="h-full rounded-full transition-all duration-700"
-                                  style={{ width: `${xpPct}%`, backgroundColor: RARITY_CONFIG[card.rarity].color }}
-                                />
-                              </div>
-                              <p className="text-center text-xs text-slate-600 mt-0.5">
+                            <Box w={144}>
+                              <Progress value={xpPct} size="xs" radius="xl"
+                                styles={{ section: { backgroundColor: RARITY_CONFIG[card.rarity].color } }}
+                              />
+                              <Text size="10px" ta="center" c="dimmed" mt={2}>
                                 {totalXp.toLocaleString()} / {card.xpUnlock.toLocaleString()} XP
-                              </p>
-                            </div>
+                              </Text>
+                            </Box>
                           )}
                           {owned && (
-                            <span className="text-xs font-bold px-2 py-0.5 rounded-full"
-                              style={{ color: RARITY_CONFIG[card.rarity].color, backgroundColor: RARITY_CONFIG[card.rarity].color + '18', border: `1px solid ${RARITY_CONFIG[card.rarity].color}44` }}>
+                            <Badge size="xs" variant="light" style={{ color: RARITY_CONFIG[card.rarity].color, background: `${RARITY_CONFIG[card.rarity].color}18` }}>
                               ✓ {lang === 'zh' ? '已解锁' : 'Unlocked'}
-                            </span>
+                            </Badge>
                           )}
                           {card.xpUnlock === 0 && !owned && (
-                            <span className="text-xs text-slate-600">{lang === 'zh' ? '手动授予' : 'Manual grant'}</span>
+                            <Text size="10px" c="dimmed">{lang === 'zh' ? '手动授予' : 'Manual grant'}</Text>
                           )}
-                        </div>
+                        </Stack>
                       )
                     })}
-                  </div>
-                </div>
+                  </Group>
+                </Stack>
               )
             })}
-          </div>
+          </Stack>
+
         )}
 
         {/* LOG TAB */}
         {activeTab === 'log' && (
-          <div className="space-y-3">
-            <p className="text-slate-400 text-sm">{txt.log.label}</p>
+          <Stack gap="sm">
+            <Text size="sm" c="dimmed">{txt.log.label}</Text>
             {recentLogs.length === 0 ? (
-              <div className="text-center py-12 text-slate-500">
-                <div className="text-4xl mb-2">📭</div>
-                <p>{txt.log.empty}</p>
-                <p className="text-sm mt-1">{txt.log.emptyHint}</p>
-              </div>
+              <Stack align="center" py="xl" gap="xs">
+                <Text size="36px">📭</Text>
+                <Text c="dimmed">{txt.log.empty}</Text>
+                <Text size="sm" c="dimmed">{txt.log.emptyHint}</Text>
+              </Stack>
             ) : (
               recentLogs.map((log, i) => (
-                <div key={i} className="flex items-center justify-between bg-black/30 rounded-xl border p-4" style={{ borderColor: stageInfo.color + '22' }}>
-                  <div>
-                    <p className="text-sm text-white font-medium">{log.description}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">{new Date(log.created_at).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US')}</p>
-                  </div>
-                  <span className="text-sm font-bold" style={{ color: stageInfo.color }}>+{log.xp_earned} XP</span>
-                </div>
+                <Paper key={i} p="md" style={{ background: 'rgba(0,0,0,0.35)', border: `1px solid ${stageInfo.color}22` }}>
+                  <Group justify="space-between">
+                    <Stack gap={2}>
+                      <Text size="sm" fw={500}>{log.description}</Text>
+                      <Text size="xs" c="dimmed">
+                        {new Date(log.created_at).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US')}
+                      </Text>
+                    </Stack>
+                    <Text size="sm" fw={700} style={{ color: stageInfo.color }}>+{log.xp_earned} XP</Text>
+                  </Group>
+                </Paper>
               ))
             )}
-          </div>
+          </Stack>
         )}
 
-        <p className="text-center text-slate-600 text-xs mt-8">{txt.footer}</p>
-      </div>
-    </main>
+        <Text ta="center" size="xs" c="dimmed" mt="xl">{txt.footer}</Text>
+      </Container>
+    </Box>
   )
 }
