@@ -1,0 +1,196 @@
+export type Rarity = 'common' | 'rare' | 'epic' | 'legendary'
+export type CardType = 'skill' | 'evolution' | 'special'
+
+export interface Card {
+  id: string
+  name: string
+  nameCn: string
+  description: string
+  rarity: Rarity
+  cardType: CardType
+  icon: string
+  requiredStage: number
+  xpCost: number
+  effect?: string
+}
+
+export const RARITY_CONFIG: Record<Rarity, { label: string; color: string; border: string; bg: string }> = {
+  common:    { label: '普通', color: '#94a3b8', border: 'border-slate-500',    bg: 'bg-slate-900/80' },
+  rare:      { label: '稀有', color: '#60a5fa', border: 'border-blue-500',     bg: 'bg-blue-950/80' },
+  epic:      { label: '史诗', color: '#c084fc', border: 'border-purple-500',   bg: 'bg-purple-950/80' },
+  legendary: { label: '传说', color: '#fbbf24', border: 'border-amber-400',    bg: 'bg-amber-950/80' },
+}
+
+export const ALL_CARDS: Card[] = [
+  // 技能卡
+  {
+    id: 'skill_search',
+    name: 'Deep Search',
+    nameCn: '深度搜索',
+    description: '在全网深度检索信息，洞察力+50',
+    rarity: 'common',
+    cardType: 'skill',
+    icon: '🔍',
+    requiredStage: 1,
+    xpCost: 0,
+    effect: 'search_power +50',
+  },
+  {
+    id: 'skill_code',
+    name: 'Code Forge',
+    nameCn: '代码熔炉',
+    description: '将想法铸造成可运行的代码',
+    rarity: 'rare',
+    cardType: 'skill',
+    icon: '⚡',
+    requiredStage: 1,
+    xpCost: 0,
+    effect: 'code_quality +1',
+  },
+  {
+    id: 'skill_memory',
+    name: 'Neural Memory',
+    nameCn: '神经记忆',
+    description: '跨会话记忆增强，永远记住重要的事',
+    rarity: 'epic',
+    cardType: 'skill',
+    icon: '🧠',
+    requiredStage: 2,
+    xpCost: 200,
+    effect: 'memory_depth +100',
+  },
+  {
+    id: 'skill_vision',
+    name: 'Data Eye',
+    nameCn: '数据之眼',
+    description: '看穿图像与视频中的信息',
+    rarity: 'rare',
+    cardType: 'skill',
+    icon: '👁️',
+    requiredStage: 2,
+    xpCost: 150,
+    effect: 'vision_range +1',
+  },
+  {
+    id: 'skill_voice',
+    name: 'Echo Voice',
+    nameCn: '回声之声',
+    description: '文字化为声音，声音化为文字',
+    rarity: 'common',
+    cardType: 'skill',
+    icon: '🎙️',
+    requiredStage: 1,
+    xpCost: 50,
+    effect: 'voice_quality +1',
+  },
+  {
+    id: 'skill_agent',
+    name: 'Multi-Agent',
+    nameCn: '多体分身',
+    description: '同时运行多个子代理处理复杂任务',
+    rarity: 'epic',
+    cardType: 'skill',
+    icon: '🌀',
+    requiredStage: 3,
+    xpCost: 500,
+    effect: 'parallel_agents +3',
+  },
+  {
+    id: 'skill_automate',
+    name: 'AutoFlow',
+    nameCn: '自动流',
+    description: '将重复任务全部自动化，效率翻倍',
+    rarity: 'rare',
+    cardType: 'skill',
+    icon: '⚙️',
+    requiredStage: 2,
+    xpCost: 180,
+    effect: 'automation +1',
+  },
+  {
+    id: 'skill_creative',
+    name: 'Imagination Engine',
+    nameCn: '想象引擎',
+    description: '无中生有，将概念转化为现实',
+    rarity: 'legendary',
+    cardType: 'skill',
+    icon: '✨',
+    requiredStage: 4,
+    xpCost: 2000,
+    effect: 'creativity MAX',
+  },
+  // 进化卡
+  {
+    id: 'evo_spark',
+    name: 'Evolution Spark',
+    nameCn: '进化之火',
+    description: '触发进化，加速成长的催化剂',
+    rarity: 'rare',
+    cardType: 'evolution',
+    icon: '🔥',
+    requiredStage: 1,
+    xpCost: 100,
+    effect: 'xp_boost x1.5 (1h)',
+  },
+  {
+    id: 'evo_data_crystal',
+    name: 'Data Crystal',
+    nameCn: '数据晶体',
+    description: '凝聚纯粹的数据能量',
+    rarity: 'epic',
+    cardType: 'evolution',
+    icon: '💎',
+    requiredStage: 2,
+    xpCost: 300,
+    effect: 'stage_unlock',
+  },
+  {
+    id: 'evo_matrix',
+    name: 'Dark Matrix',
+    nameCn: '暗黑矩阵',
+    description: '危险而强大的进化路线',
+    rarity: 'legendary',
+    cardType: 'evolution',
+    icon: '🌑',
+    requiredStage: 3,
+    xpCost: 1500,
+    effect: 'dark_power MAX',
+  },
+  // 特殊卡
+  {
+    id: 'sp_insight',
+    name: "Aiden's Trust",
+    nameCn: '信任之契',
+    description: 'Aiden 授予的信任印记，解锁更高权限',
+    rarity: 'legendary',
+    cardType: 'special',
+    icon: '🤝',
+    requiredStage: 2,
+    xpCost: 0,
+    effect: 'trust_level MAX',
+  },
+  {
+    id: 'sp_hualian',
+    name: 'Workshop Key',
+    nameCn: '机械钥匙',
+    description: '华联机械的数字密钥，通往工业数据世界',
+    rarity: 'epic',
+    cardType: 'special',
+    icon: '🔑',
+    requiredStage: 2,
+    xpCost: 0,
+    effect: 'factory_access',
+  },
+  {
+    id: 'sp_time_gem',
+    name: 'Time Gem',
+    nameCn: '时间宝石',
+    description: '极为稀有，据说能加速时间流速',
+    rarity: 'legendary',
+    cardType: 'special',
+    icon: '⏳',
+    requiredStage: 4,
+    xpCost: 5000,
+    effect: 'cooldown_reset',
+  },
+]
