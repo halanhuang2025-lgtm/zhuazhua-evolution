@@ -221,7 +221,7 @@ export default function Home() {
                     style={{ borderColor: stageInfo.color + '44', backgroundColor: stageInfo.color + '11' }}
                   >
                     <span className="text-xl">{btn.emoji}</span>
-                    <span className="text-white text-xs leading-tight text-center">{txt.activityNames[btn.type]}</span>
+                    <span className="text-white text-xs leading-tight text-center">{(txt.activityNames as Record<string, string>)[btn.type]}</span>
                     <span className="text-xs" style={{ color: stageInfo.color }}>+{btn.xp} XP</span>
                   </button>
                 ))}
