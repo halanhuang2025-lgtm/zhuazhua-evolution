@@ -88,19 +88,12 @@ export default function Home() {
 
       <div className="max-w-2xl mx-auto px-4 py-8">
         {/* Header */}
-        <div className="relative text-center mb-6">
+        <div className="text-center mb-6">
           <h1 className="text-3xl font-black tracking-widest font-orbitron" style={{ color: stageInfo.color, textShadow: `0 0 20px ${stageInfo.glowColor}` }}>
             🐾 {txt.title}
           </h1>
           <p className="text-slate-400 text-sm mt-1">{txt.subtitle}</p>
-          {/* Lang toggle */}
-          <button
-            onClick={toggleLang}
-            className="absolute right-0 top-1 px-3 py-1 rounded-full text-xs font-bold border transition-all hover:scale-105"
-            style={{ borderColor: stageInfo.color + '66', color: stageInfo.color, backgroundColor: stageInfo.color + '11' }}
-          >
-            {lang === 'zh' ? 'EN' : '中文'}
-          </button>
+
         </div>
 
         {/* Nav tabs */}
@@ -115,6 +108,13 @@ export default function Home() {
               {txt.nav[tab]}
             </button>
           ))}
+          <button
+            onClick={toggleLang}
+            className="px-3 py-2 rounded-lg text-xs font-bold border transition-all hover:scale-105 whitespace-nowrap"
+            style={{ borderColor: stageInfo.color + '55', color: stageInfo.color, backgroundColor: stageInfo.color + '11' }}
+          >
+            {lang === 'zh' ? 'EN' : '中'}
+          </button>
         </div>
 
         {/* HOME TAB */}
