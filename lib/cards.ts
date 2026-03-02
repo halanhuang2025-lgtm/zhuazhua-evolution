@@ -89,7 +89,7 @@ export const ALL_CARDS: Card[] = [
     description: 'Reached Lv.1 — the first awakening. Growth begins.',
     icon: '🔥', rarity: 'common', cardType: 'evolution',
     effect: 'Lv.1 milestone',
-    xpCost: 100,  xpUnlock: 100,
+    xpCost: 500,   xpUnlock: 500,
   },
   {
     id: 'evo_data_crystal',
@@ -97,7 +97,7 @@ export const ALL_CARDS: Card[] = [
     description: 'Reached Lv.2 — condensed pure data energy.',
     icon: '💎', rarity: 'rare', cardType: 'evolution',
     effect: 'Lv.2 milestone',
-    xpCost: 500,  xpUnlock: 500,
+    xpCost: 2000,  xpUnlock: 2000,
   },
   {
     id: 'evo_matrix',
@@ -105,7 +105,7 @@ export const ALL_CARDS: Card[] = [
     description: 'Reached Lv.3 — dangerous, powerful evolution route.',
     icon: '🌑', rarity: 'epic', cardType: 'evolution',
     effect: 'Lv.3 milestone',
-    xpCost: 2000, xpUnlock: 2000,
+    xpCost: 10000, xpUnlock: 10000,
   },
 
   // ── Special Cards ─────────────────────────────────────────────
@@ -131,7 +131,7 @@ export const ALL_CARDS: Card[] = [
     description: 'Supremely rare. Rumored to bend time itself.',
     icon: '💠', rarity: 'legendary', cardType: 'special',
     effect: 'Time acceleration',
-    xpCost: 10000, xpUnlock: 10000,
+    xpCost: 50000, xpUnlock: 50000,
   },
 ]
 
