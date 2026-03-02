@@ -5,7 +5,7 @@ import CharacterSVG from '@/components/CharacterSVG'
 import CardItem from '@/components/CardItem'
 import { STAGES, getCurrentStage, getStageProgress, getNextStageXp, XP_REWARDS, ActivityType } from '@/lib/evolution'
 import { ALL_CARDS, RARITY_CONFIG } from '@/lib/cards'
-import { getEvolutionState, addXp, getOwnedCards, getRecentActivity } from '@/lib/supabase'
+import { getEvolutionState, addXp, getOwnedCards, getRecentActivity, checkAndUnlockCards } from '@/lib/supabase'
 import { t, STAGES_I18N, CARDS_I18N, Lang } from '@/lib/i18n'
 
 export default function Home() {
@@ -17,6 +17,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<'home' | 'cards' | 'log'>('home')
   const [adding, setAdding] = useState(false)
   const [evolving, setEvolving] = useState(false)
+  const [newCards, setNewCards] = useState<string[]>([])
 
   const txt = t[lang]
   const stagesL = STAGES_I18N[lang]
@@ -29,7 +30,8 @@ export default function Home() {
   useEffect(() => {
     const saved = localStorage.getItem('lang') as Lang | null
     if (saved) setLang(saved)
-    loadData()
+    loadData().then(() => runCardUnlockCheck(totalXp))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function toggleLang() {
@@ -44,8 +46,18 @@ export default function Home() {
       setTotalXp(state.total_xp)
       setTasksCompleted(state.tasks_completed)
     }
-    setOwnedCardIds(await getOwnedCards())
+    const owned = await getOwnedCards()
+    setOwnedCardIds(owned)
     setRecentLogs(await getRecentActivity(8))
+  }
+
+  async function runCardUnlockCheck(xp: number) {
+    const newly = await checkAndUnlockCards(xp, ALL_CARDS)
+    if (newly.length > 0) {
+      setNewCards(newly)
+      setTimeout(() => setNewCards([]), 4000)
+      setOwnedCardIds(await getOwnedCards())
+    }
   }
 
   async function handleAddXp(type: ActivityType) {
@@ -59,6 +71,7 @@ export default function Home() {
     setTotalXp(newXp)
     await addXp(xp, type, (txt.activityNames as Record<string, string>)[type] ?? type)
     setRecentLogs(await getRecentActivity(8))
+    await runCardUnlockCheck(newXp)
     setAdding(false)
   }
 
@@ -83,6 +96,29 @@ export default function Home() {
             <p className="text-4xl font-black text-white drop-shadow-lg">{txt.evolveAlert}</p>
             <p className="text-xl text-white/80 mt-2">{stagesL[getCurrentStage(totalXp)].name}</p>
           </div>
+        </div>
+      )}
+
+
+      {/* New card toast */}
+      {newCards.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 items-center pointer-events-none">
+          {newCards.map(id => {
+            const card = ALL_CARDS.find(c => c.id === id)
+            return card ? (
+              <div key={id} className="flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl animate-bounce"
+                style={{ background: 'linear-gradient(135deg, #1e1b4b, #312e81)', border: `2px solid ${RARITY_CONFIG[card.rarity].color}` }}>
+                <span className="text-2xl">{card.icon}</span>
+                <div>
+                  <p className="text-xs text-slate-400 uppercase tracking-widest">Card Unlocked!</p>
+                  <p className="text-sm font-bold text-white">{lang === 'zh' ? card.nameCn : card.name}</p>
+                </div>
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ color: RARITY_CONFIG[card.rarity].color, border: `1px solid ${RARITY_CONFIG[card.rarity].color}44` }}>
+                  {RARITY_CONFIG[card.rarity].label.split('/')[lang === 'zh' ? 1 : 0]}
+                </span>
+              </div>
+            ) : null
+          })}
         </div>
       )}
 
@@ -224,10 +260,11 @@ export default function Home() {
 
         {/* CARDS TAB */}
         {activeTab === 'cards' && (
-          <div className="space-y-4">
+          <div className="space-y-5">
+            {/* Header */}
             <div className="flex justify-between items-center">
               <p className="text-slate-400 text-sm">{txt.cards.collected(ownedCardIds.length, ALL_CARDS.length)}</p>
-              <div className="flex gap-2">
+              <div className="flex gap-1 flex-wrap justify-end">
                 {(['common', 'rare', 'epic', 'legendary'] as const).map((r) => (
                   <span key={r} className="text-xs px-2 py-0.5 rounded-full" style={{ color: RARITY_CONFIG[r].color, border: `1px solid ${RARITY_CONFIG[r].color}55` }}>
                     {txt.rarityLabel[r]}
@@ -235,22 +272,59 @@ export default function Home() {
                 ))}
               </div>
             </div>
-            <div className="flex flex-wrap gap-4 justify-center">
-              {ALL_CARDS.map((card) => {
-                const cardL = CARDS_I18N[lang][card.id as keyof typeof CARDS_I18N['zh']]
-                return (
-                  <CardItem
-                    key={card.id}
-                    card={{ ...card, nameCn: cardL?.name ?? card.nameCn, description: cardL?.desc ?? card.description }}
-                    owned={ownedCardIds.includes(card.id)}
-                    lang={lang}
-                    unlockLabel={txt.unlock}
-                    needXpLabel={txt.needXp(card.xpCost)}
-                    cardTypeLabel={txt.cardTypes[card.cardType]}
-                  />
-                )
-              })}
-            </div>
+
+            {/* Skill cards section */}
+            {(['skill', 'evolution', 'special'] as const).map((section) => {
+              const sectionCards = ALL_CARDS.filter(c => c.cardType === section)
+              const sectionLabel = { skill: '⚙️ Skill', evolution: '✨ Evolution', special: '🌟 Special' }[section]
+              return (
+                <div key={section}>
+                  <p className="text-xs uppercase tracking-widest text-slate-500 mb-3 px-1">{sectionLabel}</p>
+                  <div className="flex flex-wrap gap-3 justify-start">
+                    {sectionCards.map((card) => {
+                      const owned = ownedCardIds.includes(card.id)
+                      const cardL = CARDS_I18N[lang][card.id as keyof typeof CARDS_I18N['zh']]
+                      const xpPct = card.xpUnlock > 0 ? Math.min(100, Math.round(totalXp / card.xpUnlock * 100)) : 100
+                      return (
+                        <div key={card.id} className="flex flex-col items-center gap-1.5">
+                          <CardItem
+                            card={{ ...card, nameCn: cardL?.name ?? card.nameCn, description: cardL?.desc ?? card.description }}
+                            owned={owned}
+                            lang={lang}
+                            unlockLabel={txt.unlock}
+                            needXpLabel={txt.needXp(card.xpCost)}
+                            cardTypeLabel={txt.cardTypes[card.cardType]}
+                          />
+                          {/* XP progress bar for locked cards */}
+                          {!owned && card.xpUnlock > 0 && (
+                            <div className="w-36">
+                              <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                                <div
+                                  className="h-full rounded-full transition-all duration-700"
+                                  style={{ width: `${xpPct}%`, backgroundColor: RARITY_CONFIG[card.rarity].color }}
+                                />
+                              </div>
+                              <p className="text-center text-xs text-slate-600 mt-0.5">
+                                {totalXp.toLocaleString()} / {card.xpUnlock.toLocaleString()} XP
+                              </p>
+                            </div>
+                          )}
+                          {owned && (
+                            <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                              style={{ color: RARITY_CONFIG[card.rarity].color, backgroundColor: RARITY_CONFIG[card.rarity].color + '18', border: `1px solid ${RARITY_CONFIG[card.rarity].color}44` }}>
+                              ✓ {lang === 'zh' ? '已解锁' : 'Unlocked'}
+                            </span>
+                          )}
+                          {card.xpUnlock === 0 && !owned && (
+                            <span className="text-xs text-slate-600">{lang === 'zh' ? '手动授予' : 'Manual grant'}</span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
 

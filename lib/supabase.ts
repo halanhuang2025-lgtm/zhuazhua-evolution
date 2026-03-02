@@ -78,3 +78,30 @@ export async function getRecentActivity(limit = 10): Promise<ActivityLog[]> {
     .limit(limit)
   return data ?? []
 }
+
+// ── Card unlock check ─────────────────────────────────────────
+import type { Card } from './cards'
+
+export async function checkAndUnlockCards(totalXp: number, cards: Card[]): Promise<string[]> {
+  if (!isConfigured()) return []
+
+  const { data: ownedRows } = await getClient().from('owned_cards').select('card_id')
+  const ownedSet = new Set((ownedRows ?? []).map((r: { card_id: string }) => r.card_id))
+
+  const newlyUnlocked: string[] = []
+  for (const card of cards) {
+    if (!ownedSet.has(card.id) && totalXp >= card.xpUnlock) {
+      // Auto-grant special cards with xpUnlock=0 only if manually listed
+      if (card.cardType === 'special' && card.xpUnlock === 0) continue
+      await getClient().from('owned_cards').upsert({ card_id: card.id }, { onConflict: 'card_id' })
+      newlyUnlocked.push(card.id)
+    }
+  }
+  return newlyUnlocked
+}
+
+// Grant a special card manually (by Aiden)
+export async function grantCard(cardId: string) {
+  if (!isConfigured()) return
+  await getClient().from('owned_cards').upsert({ card_id: cardId }, { onConflict: 'card_id' })
+}
