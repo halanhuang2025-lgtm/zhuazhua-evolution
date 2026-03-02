@@ -98,6 +98,7 @@ export const XP_REWARDS = {
   conversation: 10,
   daily_active: 20,
   card_obtained: 15,
+  tool_installed: 1000,
 } as const
 
 export type ActivityType = keyof typeof XP_REWARDS

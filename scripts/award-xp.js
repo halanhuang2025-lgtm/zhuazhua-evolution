@@ -13,6 +13,7 @@ const CONFIG = {
   task_complete:  { xp: 50,  label: 'Task completed' },
   problem_solved: { xp: 100, label: 'Problem solved' },
   card_obtained:  { xp: 15,  label: 'Card obtained' },
+  tool_installed: { xp: 1000, label: 'Tool installed' },
 }
 
 const [,, type] = process.argv
